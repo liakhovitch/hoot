@@ -9,7 +9,10 @@
 #include <CircularBuffer.h>
 #include "logprn.h"
 #include "tx.h"
+#include "batt.h"
 #include <LoRa.h>
+
+void onTouch();
 
 void wifi_init(char* ssid);
 

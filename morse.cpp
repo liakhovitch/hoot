@@ -77,6 +77,36 @@ const char* morse(char x){
         return "-----";
     case '.':
         return ".-.-.-";
+     case ',':
+        return "--..--";
+     case '?':
+        return "..--..";
+     case ':':
+        return "---...";
+     case '-':
+        return "-....-";
+     case '\"':
+        return ".-..-.";
+     case '(':
+        return "-.--.";
+     case ')':
+        return "-.--.-";
+     case '=':
+        return "-...-";
+     case '*':
+        return "-..-";
+     case ';':
+        return "-.-.-.";
+     case '/':
+        return "-..-.";
+     case '\'':
+        return ".----.";
+     case '_':
+        return "..__._";
+     case '+':
+        return ".-.-.";
+     case '@':
+        return ".--.-.";
     default:
         return "";
     }

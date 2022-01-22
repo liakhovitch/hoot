@@ -32,6 +32,8 @@ void logbyte(char c){
    }
    else if (c == '\n'){
      logbytes("<br>");
+   }else if (c == 0){
+     return;
    }
    else logbuf.push(c);
 }
@@ -51,7 +53,7 @@ void err(char* msg){
   logprn("Error: ");
   logprnln(msg);
   digitalWrite(SND_ENABLE, HIGH);
-  out -> SetGain(VOL_SAM * settings.vol);
+  out -> SetGain(VOL_SAM * settings.mainvol * settings.ttsvol);
   sam->Say(out, "Error!");
   sam->Say(out, msg);
   digitalWrite(SND_ENABLE, LOW);
@@ -61,7 +63,7 @@ void err(char* msg, char* msg_sam){
   logprn("Error: ");
   logprnln(msg);
   digitalWrite(SND_ENABLE, HIGH);
-  out -> SetGain(VOL_SAM * settings.vol);
+  out -> SetGain(VOL_SAM * settings.mainvol * settings.ttsvol);
   sam->Say(out, "Error!");
   sam->Say(out, msg_sam);
   digitalWrite(SND_ENABLE, LOW);
@@ -70,7 +72,7 @@ void err(char* msg, char* msg_sam){
 void announce(char* msg){
   logprnln(msg);
   digitalWrite(SND_ENABLE, HIGH);
-  out -> SetGain(VOL_SAM * settings.vol);
+  out -> SetGain(VOL_SAM * settings.mainvol * settings.ttsvol);
   sam->Say(out, msg);
   digitalWrite(SND_ENABLE, LOW);
 }
@@ -78,7 +80,7 @@ void announce(char* msg){
 void announce(char* msg, char* msg_sam){
   logprnln(msg);
   digitalWrite(SND_ENABLE, HIGH);
-  out -> SetGain(VOL_SAM * settings.vol);
+  out -> SetGain(VOL_SAM * settings.mainvol * settings.ttsvol);
   sam->Say(out, msg_sam);
   digitalWrite(SND_ENABLE, LOW);
 }

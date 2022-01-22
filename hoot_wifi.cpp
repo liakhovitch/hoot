@@ -8,6 +8,8 @@ IPAddress apIP(192, 168, 1, 1);
 DNSServer* dnsServer = NULL;;
 WiFiServer* server = NULL;
 
+char header[MAX_HEAD_LEN];
+
 int wifi_on = 0;
 
 char * strnstr(const char *s, const char *find, size_t slen) {
@@ -46,20 +48,36 @@ void store_params(Preferences* prefs, struct Settings* settings){
   prefs->putBytes("hmsg", settings->hmsg, 9);
   prefs->putUChar("hrcv", settings->hrcv);
   prefs->putBytes("ssid", settings->ssid, 9);
+  prefs->putUChar("wiboot", settings->wiboot);
   prefs->putFloat("hzrx", settings->hzrx);
   prefs->putUChar("rxbp", settings->rxbp);
   prefs->putFloat("hztx", settings->hztx);
   prefs->putUChar("txbp", settings->txbp);
-  prefs->putFloat("vol", settings->vol);
+  prefs->putFloat("mainvol", settings->mainvol);
+  prefs->putFloat("ttsvol", settings->ttsvol);
+  prefs->putFloat("hootvol", settings->hootvol);
   prefs->putUChar("hootsnd", settings->hootsnd);
   prefs->putULong("rxunit", settings->rxunit);
+  prefs->putULong("dashth", settings->dashth);
+  prefs->putULong("wifith", settings->wifith);
+  prefs->putULong("symth", settings->symth);
+  prefs->putULong("wordth", settings->wordth);
+  prefs->putULong("endth", settings->endth);
+  prefs->putUChar("tth", settings->tth);
+  prefs->putUChar("tdb", settings->tdb);
   prefs->putUChar("wrd", settings->wrd);
   prefs->putUChar("pack", settings->pack);
   prefs->putUChar("pwr", settings->pwr);
   prefs->putUChar("sprd", settings->sprd);
+  prefs->putFloat("battc", settings->battc);
   LoRa.setSyncWord(settings->wrd);
   LoRa.setTxPower(settings->pwr);
   LoRa.setSpreadingFactor(settings->sprd);
+  touchAttachInterrupt(T2, onTouch, settings->tth);
+}
+
+void onTouch(){
+  return;
 }
 
 void wifi_init(char* ssid){
@@ -73,7 +91,6 @@ void handle_wifi(Preferences* prefs, struct Settings* settings, CircularBuffer<c
       dnsServer->processNextRequest();
       WiFiClient client = server->available();   // listen for incoming clients
       if (client) {
-        char header[MAX_HEAD_LEN];
         unsigned long currentTime = millis();
         unsigned long previousTime = currentTime;
         char c_prev = '\0';
@@ -100,6 +117,7 @@ void handle_wifi(Preferences* prefs, struct Settings* settings, CircularBuffer<c
             int len;
             //nlogprn(header, head_index);
             if(strnstr(header, "settings=1", head_index) == header){
+              logprnln("Settings updated.");
               len = findparam(header, "hmsg=", head_index, &s, 8);
               if(len >= 0){
                 memset(settings->hmsg, '\0', 9);
@@ -136,15 +154,37 @@ void handle_wifi(Preferences* prefs, struct Settings* settings, CircularBuffer<c
               len = findparam(header, "txbp=", head_index, &s, 8);
               if(len >= 0) settings->txbp = 1;
               else settings->txbp = 0;
-              len = findparam(header, "vol=", head_index, &s, 8);
+              len = findparam(header, "mainvol=", head_index, &s, 8);
               if(len >= 0){
                 char stmp[9];
                 memset(stmp, '\0', 9);
                 strncpy(stmp, s, len);
                 char* str_end = NULL;
                 float ntmp = strtof(stmp, &str_end);
-                if(str_end != stmp && ntmp >= 0 && ntmp <= 2){
-                  settings->vol = ntmp;
+                if(str_end != stmp && ntmp >= 0 && ntmp <= 3){
+                  settings->mainvol = ntmp;
+                }
+              }
+              len = findparam(header, "ttsvol=", head_index, &s, 8);
+              if(len >= 0){
+                char stmp[9];
+                memset(stmp, '\0', 9);
+                strncpy(stmp, s, len);
+                char* str_end = NULL;
+                float ntmp = strtof(stmp, &str_end);
+                if(str_end != stmp && ntmp >= 0.5 && ntmp <= 1.5){
+                  settings->ttsvol = ntmp;
+                }
+              }
+              len = findparam(header, "hootvol=", head_index, &s, 8);
+              if(len >= 0){
+                char stmp[9];
+                memset(stmp, '\0', 9);
+                strncpy(stmp, s, len);
+                char* str_end = NULL;
+                float ntmp = strtof(stmp, &str_end);
+                if(str_end != stmp && ntmp >= 0.5 && ntmp <= 1.5){
+                  settings->hootvol = ntmp;
                 }
               }
               len = findparam(header, "hootsnd=", head_index, &s, 8);
@@ -167,6 +207,87 @@ void handle_wifi(Preferences* prefs, struct Settings* settings, CircularBuffer<c
                 long ntmp = strtol(stmp, &str_end, 10);
                 if(str_end != stmp && ntmp >= 0 && ntmp <= 1000){
                   settings->rxunit = (uint16_t)ntmp;
+                }
+              }
+              len = findparam(header, "dashth=", head_index, &s, 8);
+              if(len >= 0){
+                char stmp[9];
+                memset(stmp, '\0', 9);
+                strncpy(stmp, s, len);
+                char* str_end = NULL;
+                long ntmp = strtol(stmp, &str_end, 10);
+                if(str_end != stmp && ntmp >= 0 && ntmp <= 2000){
+                  settings->dashth = (uint16_t)ntmp;
+                }
+              }
+              len = findparam(header, "wifith=", head_index, &s, 8);
+              if(len >= 0){
+                char stmp[9];
+                memset(stmp, '\0', 9);
+                strncpy(stmp, s, len);
+                char* str_end = NULL;
+                long ntmp = strtol(stmp, &str_end, 10);
+                if(str_end != stmp && ntmp >= 0 && ntmp <= 20000){
+                  settings->wifith = (uint16_t)ntmp;
+                }
+              }
+              if (settings->wifith < settings->dashth) settings->wifith = settings->dashth;
+              len = findparam(header, "symth=", head_index, &s, 8);
+              if(len >= 0){
+                char stmp[9];
+                memset(stmp, '\0', 9);
+                strncpy(stmp, s, len);
+                char* str_end = NULL;
+                long ntmp = strtol(stmp, &str_end, 10);
+                if(str_end != stmp && ntmp >= 0 && ntmp <= 2000){
+                  settings->symth = (uint16_t)ntmp;
+                }
+              }
+              len = findparam(header, "wordth=", head_index, &s, 8);
+              if(len >= 0){
+                char stmp[9];
+                memset(stmp, '\0', 9);
+                strncpy(stmp, s, len);
+                char* str_end = NULL;
+                long ntmp = strtol(stmp, &str_end, 10);
+                if(str_end != stmp && ntmp >= 0 && ntmp <= 2000){
+                  settings->wordth = (uint16_t)ntmp;
+                }
+              }
+              if (settings->wordth < settings->symth) settings->wordth = settings->symth;
+              len = findparam(header, "endth=", head_index, &s, 8);
+              if(len >= 0){
+                char stmp[9];
+                memset(stmp, '\0', 9);
+                strncpy(stmp, s, len);
+                char* str_end = NULL;
+                long ntmp = strtol(stmp, &str_end, 10);
+                if(str_end != stmp && ntmp >= 0 && ntmp <= 2000){
+                  settings->endth = (uint16_t)ntmp;
+                }
+              }
+              if (settings->endth < settings->wordth) settings->endth = settings->wordth;
+              len = findparam(header, "tth=", head_index, &s, 8);
+              if(len >= 0){
+                char stmp[9];
+                memset(stmp, '\0', 9);
+                strncpy(stmp, s, len);
+                char* str_end = NULL;
+                long ntmp = strtol(stmp, &str_end, 10);
+                if(str_end != stmp && ntmp >= 0 && ntmp <= 127){
+                  settings->tth = (uint8_t)ntmp;
+                }
+              }
+              len = findparam(header, "tdb=", head_index, &s, 8);
+              if(len >= 0){
+                char stmp[9];
+                memset(stmp, '\0', 9);
+                strncpy(stmp, s, len);
+                char* str_end = NULL;
+                long ntmp = strtol(stmp, &str_end, 10);
+                if(str_end != stmp && ntmp >= 0 && ntmp <= 50){
+                  settings->tdb = (uint8_t)ntmp;
+                  if(settings->tdb >= settings->tth) settings->tdb = 0;
                 }
               }
               len = findparam(header, "wrd=", head_index, &s, 8);
@@ -218,6 +339,23 @@ void handle_wifi(Preferences* prefs, struct Settings* settings, CircularBuffer<c
                 memset(settings->ssid, '\0', 9);
                 strncpy(settings->ssid, s, len);
               }
+              len = findparam(header, "wiboot=", head_index, &s, 8);
+              if(len >= 0) settings->wiboot = 1;
+              else settings->wiboot = 0;
+              len = findparam(header, "repeat=", head_index, &s, 8);
+              if(len >= 0) settings->repeat = 1;
+              else settings->repeat = 0;
+              len = findparam(header, "battc=", head_index, &s, 8);
+              if(len >= 0){
+                char stmp[9];
+                memset(stmp, '\0', 9);
+                strncpy(stmp, s, len);
+                char* str_end = NULL;
+                float ntmp = strtof(stmp, &str_end);
+                if(str_end != stmp && ntmp >= 0 && ntmp <= 2){
+                  settings->battc = (float)ntmp;
+                }
+              }
             } else{
               len = findparam(header, "txmsg=", head_index, &s, 50);
               if(len > 0){
@@ -227,6 +365,16 @@ void handle_wifi(Preferences* prefs, struct Settings* settings, CircularBuffer<c
                 }
                 txflush();
                 logprnln("Web msg submitted.");
+              }
+              if(strnstr(header, "reboot=1", head_index) == header){
+                ESP.restart();
+              }
+              if(strnstr(header, "checkbatt=1", head_index) == header){
+                char stmp[9];
+                snprintf(stmp, 9, "%.2f", get_batt(settings->battc));
+                logprn("Battery voltage: ");
+                logprn(stmp);
+                logprn("V.\n");
               }
             }
             char stmp[9];
@@ -252,11 +400,11 @@ void handle_wifi(Preferences* prefs, struct Settings* settings, CircularBuffer<c
  " <input type=\"hidden\" value=\"1\" name=\"settings\">"
  " </div>"
  " <div>"
- "   <label for=\"hmsg\">Message that triggers a \"Hoot&trade;\":</label>"
+ "   <label for=\"hmsg\">Message that triggers a Hoot&trade;:</label>"
  "   <input name=\"hmsg\" id=\"hmsg\" maxlength=\"8\" value=\"");client.print(settings->hmsg);client.print("\">"
  " </div>"
  " <div>"
- "   <label for=\"hrcv\">Hoot?</label>"
+ "   <label for=\"hrcv\">Hoot&trade;?</label>"
  "   <input type=\"checkbox\" id=\"hrcv\" name=\"hrcv\" value=\"true\" ");if(settings->hrcv)client.print("checked");client.print(">"
  " </div>"
  " <div>"
@@ -276,17 +424,53 @@ void handle_wifi(Preferences* prefs, struct Settings* settings, CircularBuffer<c
  "   <input type=\"checkbox\" id=\"txbp\" name=\"txbp\" value=\"true\" ");if(settings->txbp)client.print("checked");client.print(">"
  " </div>"
  " <div>"
- "   <label for=\"vol\">Volume:</label>"
- "   <input type=\"range\" name=\"vol\" id=\"vol\" min=\"0\" max=\"2\" step=\"0.1\" value=\"");snprintf(stmp, 9, "%f", settings->vol);client.print(stmp);client.print("\">"
+ "   <label for=\"mainvol\">Volume:</label>"
+ "   <input type=\"range\" name=\"mainvol\" id=\"mainvol\" min=\"0\" max=\"3\" step=\"0.1\" value=\"");snprintf(stmp, 9, "%f", settings->mainvol);client.print(stmp);client.print("\">"
+ " </div>"
+ " <div>"
+ "   <label for=\"ttsvol\">TTS volume trim:</label>"
+ "   <input type=\"range\" name=\"ttsvol\" id=\"ttsvol\" min=\"0.5\" max=\"1.5\" step=\"0.1\" value=\"");snprintf(stmp, 9, "%f", settings->ttsvol);client.print(stmp);client.print("\">"
  " </div>" 
  " <div>"
- "   <label for=\"hootsnd\">Alternate hoot sound:</label>"
+ "   <label for=\"hootvol\">Hoot volume trim:</label>"
+ "   <input type=\"range\" name=\"hootvol\" id=\"hootvol\" min=\"0.5\" max=\"1.5\" step=\"0.1\" value=\"");snprintf(stmp, 9, "%f", settings->hootvol);client.print(stmp);client.print("\">"
+ " </div>"  
+ " <div>"
+ "   <label for=\"hootsnd\">Alternate Hoot&trade; sound:</label>"
  "   <input type=\"range\" name=\"hootsnd\" id=\"hootsnd\" min=\"0\" max=\"1\" step=\"1\" value=\"");snprintf(stmp, 9, "%i", settings->hootsnd);client.print(stmp);client.print("\">"
  " </div>" 
  " <div>"
- "   <label for=\"rxunit\">Length of a dit, in ms (RX):</label>"
+ "   <label for=\"rxunit\">RX - Length of a dit (ms):</label>"
  "   <input type=\"number\" name=\"rxunit\" id=\"rxunit\" min=\"0\" max=\"1000\" value=\"");snprintf(stmp, 9, "%i", settings->rxunit);client.print(stmp);client.print("\">"
  " </div>" 
+ " <div>"
+ "   <label for=\"dashth\">TX - Max length of a dit (ms):</label>"
+ "   <input type=\"number\" name=\"dashth\" id=\"dashth\" min=\"0\" max=\"2000\" value=\"");snprintf(stmp, 9, "%i", settings->dashth);client.print(stmp);client.print("\">"
+ " </div>"
+ " <div>"
+ "   <label for=\"wifith\">Wifi enable button hold time (ms):</label>"
+ "   <input type=\"number\" name=\"wifith\" id=\"wifith\" min=\"0\" max=\"20000\" value=\"");snprintf(stmp, 9, "%i", settings->wifith);client.print(stmp);client.print("\">"
+ " </div>"
+ " <div>"
+ "   <label for=\"symth\">TX - Max time between two dits/dashes (ms):</label>"
+ "   <input type=\"number\" name=\"symth\" id=\"symthth\" min=\"0\" max=\"2000\" value=\"");snprintf(stmp, 9, "%i", settings->symth);client.print(stmp);client.print("\">"
+ " </div>"
+ " <div>"
+ "   <label for=\"wordth\">TX - Max time between two characters (ms):</label>"
+ "   <input type=\"number\" name=\"wordth\" id=\"wordth\" min=\"0\" max=\"2000\" value=\"");snprintf(stmp, 9, "%i", settings->wordth);client.print(stmp);client.print("\">"
+ " </div>"
+ " <div>"
+ "   <label for=\"endth\">TX - Message end threshold (ms):</label>"
+ "   <input type=\"number\" name=\"endth\" id=\"endth\" min=\"0\" max=\"2000\" value=\"");snprintf(stmp, 9, "%i", settings->endth);client.print(stmp);client.print("\">"
+ " </div>"
+ " <div>"
+ "   <label for=\"tth\">Touch sensitivity (higher is more sensitive):</label>"
+ "   <input type=\"number\" name=\"tth\" id=\"tth\" min=\"0\" max=\"127\" value=\"");snprintf(stmp, 9, "%i", settings->tth);client.print(stmp);client.print("\">"
+ " </div>"
+ " <div>"
+ "   <label for=\"tdb\">Touch debounce spacing:</label>"
+ "   <input type=\"number\" name=\"tdb\" id=\"tdb\" min=\"0\" max=\"50\" value=\"");snprintf(stmp, 9, "%i", settings->tdb);client.print(stmp);client.print("\">"
+ " </div>"
  " <div>"
  "   <label for=\"wrd\">Channel (0-255):</label>"
  "   <input type=\"number\" name=\"wrd\" id=\"wrd\" min=\"0\" max=\"255\" value=\"");snprintf(stmp, 9, "%i", settings->wrd);client.print(stmp);client.print("\">"
@@ -307,12 +491,41 @@ void handle_wifi(Preferences* prefs, struct Settings* settings, CircularBuffer<c
  "   <label for=\"ssid\">WiFi SSID:</label>"
  "   <input name=\"ssid\" id=\"ssid\" maxlength=\"8\" value=\"");client.print(settings->ssid);client.print("\">"
  " </div>"
+  " <div>"
+ "   <label for=\"wiboot\">Enable wifi on startup?</label>"
+ "   <input type=\"checkbox\" id=\"wiboot\" name=\"wiboot\" value=\"true\" ");if(settings->wiboot)client.print("checked");client.print(">"
+ " </div>"
+  " <div>"
+ "   <label for=\"repeat\">Enable repeater (range test) mode?<br>Warning: do NOT enable on two devices at once.<br>Repeater mode does not persist across reboot.</label>"
+ "   <input type=\"checkbox\" id=\"repeat\" name=\"repeat\" value=\"true\" ");if(settings->repeat)client.print("checked");client.print(">"
+ " </div>"
+  " <div>"
+ "   <label for=\"battc\">Battery monitoring calibration factor:</label>"
+ "   <input type=\"number\" name=\"battc\" id=\"battc\" min=\"0\" max=\"2\" step=\"0.0001\" value=\"");snprintf(stmp, 9, "%f", settings->battc);client.print(stmp);client.print("\">"
+ " </div>" 
  " <div>"
  "   <button>Save</button>"
  " </div>"
  "</form>"
+ "<br>"
+  "<form action=\"\" method=\"post\">"
+ " <div>"
+ " <input type=\"hidden\" value=\"1\" name=\"checkbatt\">"
+ " </div>"
+ " <div>"
+ "   <button>Check Battery Voltage</button>"
+ " </div>"
+ "</form>"
+ "<form action=\"\" method=\"post\" onsubmit=\"return confirm(\'Are you sure you want to reboot?\');\">"
+ " <div>"
+ " <input type=\"hidden\" value=\"1\" name=\"reboot\">"
+ " </div>"
+ " <div>"
+ "   <button>Reboot</button>"
+ " </div>"
+ "</form>"
  " <H3>Log:</H3>"
- "<div>");
+ "<div style=\"height:240px;width:100%;border:1px solid #ccc;overflow:scroll; display:flex; flex-direction:column-reverse;\"><div style=\"font-size: 16px;font-family: verdana;\">");
  // Beyond stupid use of header buffer
  size_t j = 0;
  size_t bufsize = logbuf->size();
@@ -328,7 +541,7 @@ void handle_wifi(Preferences* prefs, struct Settings* settings, CircularBuffer<c
    client.print(header);
  }
  
- client.print("</div \"height:240px;width:100%;border:1px solid #ccc;overflow:scroll;\">"
+ client.print("</div></div>"
   "<form action=\"/\" method=\"post\">"
  " <div>"
  "   <label for=\"txmsg\">Send Message:</label>"
